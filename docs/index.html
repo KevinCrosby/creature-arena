@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>🐉 Creature Arena</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm@5.3.0/css/xterm.css" crossorigin>
+  <link rel="stylesheet" href="style.css">
+  <script src="coi-serviceworker.js"></script>
+</head>
+<body>
+  <div id="app">
+    <header>
+      <h1>🐉 Creature Arena</h1>
+      <p class="subtitle">Collect, battle, and evolve creatures — right in your browser!</p>
+    </header>
+    <div id="terminal-container" style="position:relative">
+      <div id="loading-overlay">
+        <div class="spinner"></div>
+        <div id="loading-text">Initializing…</div>
+      </div>
+      <div id="terminal"></div>
+    </div>
+    <footer>
+      <p>
+        Built with Python •
+        Powered by <a href="https://pyodide.org" target="_blank" rel="noopener">Pyodide</a> •
+        <a href="https://github.com/KevinCrosby/creature-arena" target="_blank" rel="noopener">Source Code</a>
+      </p>
+    </footer>
+  </div>
+  <script src="https://cdn.jsdelivr.net/npm/xterm@5.3.0/lib/xterm.js" crossorigin></script>
+  <script src="https://cdn.jsdelivr.net/npm/xterm-addon-fit@0.8.0/lib/xterm-addon-fit.js" crossorigin></script>
+  <script src="main.js"></script>
+</body>
+</html>
