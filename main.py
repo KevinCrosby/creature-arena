@@ -10,7 +10,8 @@ from collection import (
 )
 from data import STARTER_CREATURES, ENCOUNTER_TABLES
 from display import (
-    show_creature, battle_header, battle_message, show_menu, show_moves, health_bar,
+    show_creature, battle_header, battle_message, show_menu, show_moves,
+    health_bar, format_status_effects, evolution_message, defend_message,
 )
 from save_manager import save_game, load_game
 
@@ -68,8 +69,25 @@ def explore(collection: Collection) -> None:
         print("  You ran away safely!")
 
 
+def _display_attack(attacker_name: str, move_name: str, damage: int,
+                    mult: float, crit: bool, effect: str | None,
+                    target_name: str) -> None:
+    """Display attack results including effectiveness, crits, and effects."""
+    msg = f"  {attacker_name} used {move_name}! ({damage} damage)"
+    if mult > 1.0:
+        print(battle_message(msg + " Super effective!", "super_effective"))
+    elif mult < 1.0:
+        print(battle_message(msg + " Not very effective...", "not_effective"))
+    else:
+        print(f"  {msg}")
+    if crit:
+        print(battle_message("  💥 Critical hit!", "critical"))
+    if effect:
+        print(battle_message(f"  {target_name} was {effect}ed!", "info"))
+
+
 def run_battle(collection: Collection, opponent: Creature) -> None:
-    """Run a turn-based battle."""
+    """Run a turn-based battle with status effects, speed-based turns, and defend."""
     player = collection.get_active()
     if player is None:
         print("  You have no creatures to battle with!")
@@ -81,48 +99,79 @@ def run_battle(collection: Collection, opponent: Creature) -> None:
     while not engine.is_battle_over():
         engine.turn_count += 1
         print(f"\n--- Turn {engine.turn_count} ---")
-        print(f"\n{player.name}'s moves:")
-        print(show_moves(player))
 
-        move_choice = get_input(
-            "Pick a move: ", range(1, len(player.moves) + 1)
-        )
-        if move_choice == -1:
-            print("  You fled the battle!")
-            player.heal()
-            return
+        turn_order = engine.get_turn_order()
 
-        # Player attacks
-        move = player.moves[move_choice - 1]
-        damage, mult, crit = engine.player_turn(move)
-        msg = f"  {player.name} used {move.name}! ({damage} damage)"
-        if mult > 1.0:
-            print(battle_message(msg + " Super effective!", "super_effective"))
-        elif mult < 1.0:
-            print(battle_message(msg + " Not very effective...", "not_effective"))
-        else:
-            print(f"  {msg}")
-        if crit:
-            print(battle_message("  💥 Critical hit!", "critical"))
+        for actor in turn_order:
+            if engine.is_battle_over():
+                break
 
-        if engine.is_battle_over():
-            break
+            creature = player if actor == "player" else opponent
 
-        # Opponent attacks
-        opp_move, opp_dmg, opp_mult, opp_crit = engine.opponent_turn()
-        msg = f"  {opponent.name} used {opp_move.name}! ({opp_dmg} damage)"
-        if opp_mult > 1.0:
-            print(battle_message(msg + " Super effective!", "super_effective"))
-        elif opp_mult < 1.0:
-            print(battle_message(msg + " Not very effective...", "not_effective"))
-        else:
-            print(f"  {msg}")
-        if opp_crit:
-            print(battle_message("  💥 Critical hit!", "critical"))
+            # Process status effects at start of turn
+            status_results = engine.process_turn_start(creature)
+            for effect, damage in status_results:
+                if damage > 0:
+                    print(battle_message(
+                        f"  {creature.name} took {damage} from {effect}!",
+                        "not_effective",
+                    ))
 
-        # Show HP
+            if engine.is_battle_over():
+                break
+
+            if creature.is_stunned():
+                print(battle_message(
+                    f"  ⚡ {creature.name} is stunned and can't move!",
+                    "not_effective",
+                ))
+                continue
+
+            if actor == "player":
+                # Show moves + defend option
+                print(f"\n{player.name}'s moves:")
+                print(show_moves(player))
+                num_moves = len(player.moves)
+                print(f"  {num_moves + 1}. 🛡️ Defend")
+
+                move_choice = get_input(
+                    "Pick a move: ", range(1, num_moves + 2),
+                )
+                if move_choice == -1:
+                    print("  You fled the battle!")
+                    player.heal()
+                    return
+
+                if move_choice == num_moves + 1:
+                    engine.player_defend()
+                    print(defend_message(player.name))
+                else:
+                    move = player.moves[move_choice - 1]
+                    damage, mult, crit, effect = engine.player_turn(move)
+                    _display_attack(
+                        player.name, move.name, damage, mult, crit,
+                        effect, opponent.name,
+                    )
+            else:
+                # Opponent turn
+                opp_move, opp_dmg, opp_mult, opp_crit, opp_effect = (
+                    engine.opponent_turn()
+                )
+                if opp_move is None:
+                    print(defend_message(opponent.name))
+                else:
+                    _display_attack(
+                        opponent.name, opp_move.name, opp_dmg, opp_mult,
+                        opp_crit, opp_effect, player.name,
+                    )
+
+        # Show HP and status effects after both turns
         print(f"\n  {player.name}: {health_bar(player.hp, player.max_hp)}")
         print(f"  {opponent.name}: {health_bar(opponent.hp, opponent.max_hp)}")
+        for c in [player, opponent]:
+            effects = format_status_effects(c)
+            if effects:
+                print(f"  {c.name}: {effects}")
 
     # Battle result
     result = engine.get_result()
@@ -132,11 +181,16 @@ def run_battle(collection: Collection, opponent: Creature) -> None:
     if result.winner is player:
         print(battle_message(f"\n🏆 {player.name} wins!", "level_up"))
         xp = calculate_xp_reward(opponent)
-        leveled = player.gain_xp(xp)
+        old_name = player.name
+        leveled, evolved_name = player.gain_xp(xp)
         print(f"  +{xp} XP!")
-        if leveled:
+        if evolved_name:
+            print(evolution_message(old_name, evolved_name))
+            print(show_creature(player))
+        elif leveled:
             print(battle_message(
-                f"  🎉 {player.name} leveled up to Lv.{player.level}!", "level_up"
+                f"  🎉 {player.name} leveled up to Lv.{player.level}!",
+                "level_up",
             ))
         # Offer to catch
         if not collection.is_full():
@@ -147,7 +201,7 @@ def run_battle(collection: Collection, opponent: Creature) -> None:
                     opponent.heal()
                     collection.add_creature(opponent)
                     print(battle_message(
-                        f"  ✨ You caught {opponent.name}!", "catch"
+                        f"  ✨ You caught {opponent.name}!", "catch",
                     ))
                 else:
                     print(f"  {opponent.name} broke free!")

@@ -16,6 +16,8 @@ TYPE_COLORS: dict[str, str] = {
     "electric": Fore.YELLOW,
     "shadow": Fore.MAGENTA,
     "normal": Fore.WHITE,
+    "ice": Fore.CYAN,
+    "psychic": Fore.MAGENTA + Style.BRIGHT,
 }
 
 TYPE_EMOJI: dict[str, str] = {
@@ -25,9 +27,30 @@ TYPE_EMOJI: dict[str, str] = {
     "electric": "⚡",
     "shadow": "🌙",
     "normal": "⭐",
+    "ice": "❄️",
+    "psychic": "🔮",
+}
+
+STATUS_ICONS: dict[str, str] = {
+    "poison": "☠️",
+    "burn": "🔥",
+    "stun": "⚡",
+    "shield": "🛡️",
+    "boost": "💪",
 }
 
 BAR_LENGTH = 20
+
+
+def format_status_effects(creature: Creature) -> str:
+    """Format active status effects as a string with icons."""
+    if not creature.status_effects:
+        return ""
+    parts = []
+    for effect, turns in creature.status_effects.items():
+        icon = STATUS_ICONS.get(effect, "❓")
+        parts.append(f"{icon}{effect}({turns}t)")
+    return " ".join(parts)
 
 
 def health_bar(current: int, maximum: int) -> str:
@@ -61,6 +84,11 @@ def show_creature(creature: Creature, show_art: bool = True) -> str:
         f"Lv.{creature.level}"
     )
     lines.append(f"  HP: {health_bar(creature.hp, creature.max_hp)}")
+    status_str = format_status_effects(creature)
+    if status_str:
+        lines.append(f"  Status: {status_str}")
+    if creature.evolution_stage > 0:
+        lines.append(f"  Evolution: {'★' * creature.evolution_stage}")
     lines.append(
         f"  ATK: {creature.attack}  DEF: {creature.defense}  "
         f"XP: {creature.xp}/{creature.xp_to_next}"
@@ -71,7 +99,17 @@ def show_creature(creature: Creature, show_art: bool = True) -> str:
 def battle_header(player: Creature, opponent: Creature) -> str:
     """Render the battle header showing both creatures."""
     sep = "=" * 50
-    return f"\n{sep}\n{show_creature(player, show_art=False)}\n\n  VS\n\n{show_creature(opponent, show_art=False)}\n{sep}"
+    parts = [f"\n{sep}", show_creature(player, show_art=False)]
+    p_status = format_status_effects(player)
+    if p_status:
+        parts.append(f"  Effects: {p_status}")
+    parts.append("\n  VS\n")
+    parts.append(show_creature(opponent, show_art=False))
+    o_status = format_status_effects(opponent)
+    if o_status:
+        parts.append(f"  Effects: {o_status}")
+    parts.append(sep)
+    return "\n".join(parts)
 
 
 def battle_message(text: str, msg_type: str = "info") -> str:
@@ -97,6 +135,24 @@ def show_menu(title: str, options: list[str]) -> str:
     return "\n".join(lines)
 
 
+def evolution_message(old_name: str, new_name: str) -> str:
+    """Format a dramatic evolution message."""
+    lines = [
+        "",
+        battle_message("✨ " + "=" * 40 + " ✨", "level_up"),
+        battle_message(f"  🧬 {old_name} is evolving!", "level_up"),
+        battle_message(f"  🎉 {old_name} evolved into {new_name}!", "level_up"),
+        battle_message("✨ " + "=" * 40 + " ✨", "level_up"),
+        "",
+    ]
+    return "\n".join(lines)
+
+
+def defend_message(creature_name: str) -> str:
+    """Format a defend action message."""
+    return battle_message(f"  🛡️ {creature_name} braces for impact!", "info")
+
+
 def show_moves(creature: Creature) -> str:
     """Display a creature's available moves."""
     if not creature.moves:
@@ -105,8 +161,13 @@ def show_moves(creature: Creature) -> str:
     for i, move in enumerate(creature.moves, 1):
         color = TYPE_COLORS.get(move.move_type, Fore.WHITE)
         emoji = TYPE_EMOJI.get(move.move_type, "")
+        effect_tag = ""
+        if move.effect:
+            effect_icon = STATUS_ICONS.get(move.effect, "❓")
+            chance_pct = int(move.effect_chance * 100)
+            effect_tag = f" [{effect_icon}{move.effect} {chance_pct}%]"
         lines.append(
             f"  {i}. {color}{move.name}{Style.RESET_ALL} {emoji} "
-            f"(Power: {move.power}) - {move.description}"
+            f"(Power: {move.power}) - {move.description}{effect_tag}"
         )
     return "\n".join(lines)

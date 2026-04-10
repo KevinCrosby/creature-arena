@@ -107,37 +107,38 @@ class TestHeal:
 class TestGainXP:
     def test_gain_xp_no_level_up(self):
         c = Creature("Test", "fire")  # xp_to_next = 10
-        leveled = c.gain_xp(5)
+        leveled, evolved = c.gain_xp(5)
         assert not leveled
+        assert evolved is None
         assert c.xp == 5
 
     def test_gain_xp_level_up(self):
         c = Creature("Test", "fire")  # xp_to_next = 10
-        leveled = c.gain_xp(10)
+        leveled, evolved = c.gain_xp(10)
         assert leveled
         assert c.level == 2
 
     def test_gain_xp_exactly_at_threshold(self):
         c = Creature("Test", "fire")
-        leveled = c.gain_xp(10)  # exactly xp_to_next
+        leveled, evolved = c.gain_xp(10)  # exactly xp_to_next
         assert leveled
         assert c.level == 2
         assert c.xp == 0  # 10 - 10 = 0
 
     def test_gain_xp_overflow(self):
         c = Creature("Test", "fire")
-        leveled = c.gain_xp(15)  # 5 over threshold
+        leveled, evolved = c.gain_xp(15)  # 5 over threshold
         assert leveled
         assert c.level == 2
         assert c.xp == 5  # 15 - 10 = 5
 
     def test_gain_zero_xp_returns_false(self):
         c = Creature("Test", "fire")
-        assert not c.gain_xp(0)
+        assert c.gain_xp(0) == (False, None)
 
     def test_gain_negative_xp_returns_false(self):
         c = Creature("Test", "fire")
-        assert not c.gain_xp(-5)
+        assert c.gain_xp(-5) == (False, None)
         assert c.xp == 0
 
     def test_level_up_recalculates_stats(self):

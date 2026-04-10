@@ -7,7 +7,7 @@ import pytest
 from creature import Creature, Move
 from battle import (
     get_type_multiplier, calculate_damage, calculate_xp_reward,
-    roll_critical, BattleEngine, CRITICAL_HIT_MULTIPLIER,
+    roll_critical, apply_move_effect, BattleEngine, CRITICAL_HIT_MULTIPLIER,
 )
 from data import WEAKNESS_MULTIPLIER, RESISTANCE_MULTIPLIER
 
@@ -111,7 +111,7 @@ class TestBattleEngine:
         opponent = self._make_creature("Opp", "nature")
         engine = BattleEngine(player, opponent)
         with patch("battle.roll_critical", return_value=False):
-            damage, mult, crit = engine.player_turn(player.moves[0])
+            damage, mult, crit, effect = engine.player_turn(player.moves[0])
         assert damage > 0
         assert opponent.hp < opponent.max_hp
 
@@ -120,7 +120,7 @@ class TestBattleEngine:
         opponent = self._make_creature("Opp", "water")
         engine = BattleEngine(player, opponent)
         with patch("battle.roll_critical", return_value=False):
-            move, damage, mult, crit = engine.opponent_turn()
+            move, damage, mult, crit, effect = engine.opponent_turn()
         assert damage > 0
         assert player.hp < player.max_hp
 
@@ -132,7 +132,7 @@ class TestBattleEngine:
         ])
         engine = BattleEngine(player, opponent)
         with patch("battle.roll_critical", return_value=False):
-            move, _, _, _ = engine.opponent_turn()
+            move, _, _, _, _ = engine.opponent_turn()
         assert move.move_type == "fire"
 
     def test_battle_over_when_fainted(self):
@@ -173,7 +173,7 @@ class TestBattleEngine:
         opponent = Creature("Opp", "water", moves=[])
         engine = BattleEngine(player, opponent)
         with patch("battle.roll_critical", return_value=False):
-            move, damage, _, _ = engine.opponent_turn()
+            move, damage, _, _, _ = engine.opponent_turn()
         assert move.name == "Struggle"
         assert damage > 0
 
