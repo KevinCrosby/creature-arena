@@ -27,9 +27,15 @@ class Creature:
         moves: list[Move] | None = None,
         xp: int = 0,
         hp: int | None = None,
+        secondary_type: str | None = None,
+        ability: str | None = None,
+        nickname: str | None = None,
     ):
         self.name = name
         self.creature_type = creature_type
+        self.secondary_type = secondary_type
+        self.ability = ability
+        self.nickname = nickname
         self.level = max(1, level)
         self.max_hp = 20 + (self.level * 5)
         self.hp = hp if hp is not None else self.max_hp
@@ -43,6 +49,18 @@ class Creature:
         self.status_effects: dict[str, int] = {}
         self.evolution_stage: int = 0
         self.is_defending: bool = False
+
+    @property
+    def display_name(self) -> str:
+        """Return nickname if set, otherwise species name."""
+        return self.nickname if self.nickname else self.name
+
+    @property
+    def types(self) -> list[str]:
+        """Return list of all types (primary + secondary if present)."""
+        if self.secondary_type:
+            return [self.creature_type, self.secondary_type]
+        return [self.creature_type]
 
     # -- Status effects --
 
@@ -166,7 +184,7 @@ class Creature:
 
     def to_dict(self) -> dict:
         """Serialize to a JSON-safe dictionary."""
-        return {
+        d: dict = {
             "name": self.name,
             "creature_type": self.creature_type,
             "level": self.level,
@@ -183,6 +201,13 @@ class Creature:
             "status_effects": dict(self.status_effects),
             "evolution_stage": self.evolution_stage,
         }
+        if self.secondary_type:
+            d["secondary_type"] = self.secondary_type
+        if self.ability:
+            d["ability"] = self.ability
+        if self.nickname:
+            d["nickname"] = self.nickname
+        return d
 
     @classmethod
     def from_dict(cls, data: dict) -> Creature:
@@ -206,6 +231,9 @@ class Creature:
             moves=moves,
             xp=data.get("xp", 0),
             hp=data.get("hp"),
+            secondary_type=data.get("secondary_type"),
+            ability=data.get("ability"),
+            nickname=data.get("nickname"),
         )
         creature.status_effects = data.get("status_effects", {})
         creature.evolution_stage = data.get("evolution_stage", 0)

@@ -6,6 +6,7 @@ import random
 from creature import Creature
 from data import (
     STARTER_CREATURES, ENCOUNTER_TABLES, get_moves_for_types,
+    CREATURE_ABILITIES,
 )
 
 MAX_PARTY_SIZE = 6
@@ -87,12 +88,14 @@ def create_starter(template_index: int) -> Creature:
         raise ValueError(f"Invalid template index: {template_index}")
     template = STARTER_CREATURES[template_index]
     moves = get_moves_for_types(template["moves"])
-    return Creature(
+    creature = Creature(
         name=template["name"],
         creature_type=template["creature_type"],
         level=template["level"],
         moves=moves,
     )
+    creature.ability = CREATURE_ABILITIES.get(template["name"])
+    return creature
 
 
 def wild_encounter(area: str) -> Creature | None:
@@ -104,12 +107,14 @@ def wild_encounter(area: str) -> Creature | None:
     template = STARTER_CREATURES[entry["template"]]
     level = random.randint(entry["min_level"], entry["max_level"])
     moves = get_moves_for_types(template["moves"])
-    return Creature(
+    creature = Creature(
         name=template["name"],
         creature_type=template["creature_type"],
         level=level,
         moves=moves,
     )
+    creature.ability = CREATURE_ABILITIES.get(template["name"])
+    return creature
 
 
 def catch_attempt(creature: Creature) -> bool:

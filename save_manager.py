@@ -9,21 +9,36 @@ from pathlib import Path
 from collection import Collection
 from creature import Creature
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 DEFAULT_SAVE_DIR = os.path.expanduser("~/.creature-arena")
 DEFAULT_SAVE_PATH = os.path.join(DEFAULT_SAVE_DIR, "save.json")
 
 
-def save_game(collection: Collection, path: str = DEFAULT_SAVE_PATH) -> bool:
-    """Save the collection to a JSON file. Returns True on success."""
+def save_full_state(
+    collection: Collection,
+    inventory: object | None = None,
+    pokedex: object | None = None,
+    achievements: object | None = None,
+    story: object | None = None,
+    path: str = DEFAULT_SAVE_PATH,
+) -> bool:
+    """Save full game state to a JSON file. Returns True on success."""
     try:
         save_dir = os.path.dirname(path)
         os.makedirs(save_dir, exist_ok=True)
-        data = {
+        data: dict = {
             "schema_version": SCHEMA_VERSION,
             "saved_at": datetime.now().isoformat(),
             "collection": collection.to_dict(),
         }
+        if inventory and hasattr(inventory, 'to_dict'):
+            data["inventory"] = inventory.to_dict()
+        if pokedex and hasattr(pokedex, 'to_dict'):
+            data["pokedex"] = pokedex.to_dict()
+        if achievements and hasattr(achievements, 'to_dict'):
+            data["achievements"] = achievements.to_dict()
+        if story and hasattr(story, 'to_dict'):
+            data["story"] = story.to_dict()
         with open(path, "w", encoding="utf-8") as f:
             json.dump(data, f, indent=2, ensure_ascii=False)
         return True
@@ -32,8 +47,13 @@ def save_game(collection: Collection, path: str = DEFAULT_SAVE_PATH) -> bool:
         return False
 
 
-def load_game(path: str = DEFAULT_SAVE_PATH) -> Collection | None:
-    """Load a collection from a JSON file. Returns None on failure."""
+def save_game(collection: Collection, path: str = DEFAULT_SAVE_PATH) -> bool:
+    """Save just the collection (backward compatible)."""
+    return save_full_state(collection, path=path)
+
+
+def load_full_state(path: str = DEFAULT_SAVE_PATH) -> dict | None:
+    """Load full game state from a JSON file. Returns raw data dict or None."""
     if not os.path.exists(path):
         return None
     try:
@@ -43,7 +63,6 @@ def load_game(path: str = DEFAULT_SAVE_PATH) -> Collection | None:
         print(f"Warning: Could not load save file: {e}")
         return None
 
-    # Validate schema version
     version = data.get("schema_version")
     if version is None:
         print("Warning: Save file missing schema version, skipping.")
@@ -52,7 +71,6 @@ def load_game(path: str = DEFAULT_SAVE_PATH) -> Collection | None:
         print(f"Warning: Save file version {version} is newer than supported ({SCHEMA_VERSION}).")
         return None
 
-    # Validate collection data
     collection_data = data.get("collection")
     if not isinstance(collection_data, dict):
         print("Warning: Save file missing or invalid collection data.")
@@ -64,13 +82,51 @@ def load_game(path: str = DEFAULT_SAVE_PATH) -> Collection | None:
         print(f"Warning: Could not parse save data: {e}")
         return None
 
-    # Validate each creature
     for creature in collection.creatures:
         if not validate_creature(creature):
             print(f"Warning: Creature '{creature.name}' has invalid stats, repairing.")
             _repair_creature(creature)
 
-    return collection
+    result: dict = {"collection": collection}
+
+    # Load optional subsystems
+    try:
+        from items import Inventory
+        if "inventory" in data:
+            result["inventory"] = Inventory.from_dict(data["inventory"])
+    except (ImportError, KeyError, TypeError):
+        pass
+
+    try:
+        from pokedex import Pokedex
+        if "pokedex" in data:
+            result["pokedex"] = Pokedex.from_dict(data["pokedex"])
+    except (ImportError, KeyError, TypeError):
+        pass
+
+    try:
+        from achievements import AchievementTracker
+        if "achievements" in data:
+            result["achievements"] = AchievementTracker.from_dict(data["achievements"])
+    except (ImportError, KeyError, TypeError):
+        pass
+
+    try:
+        from story import StoryProgress
+        if "story" in data:
+            result["story"] = StoryProgress.from_dict(data["story"])
+    except (ImportError, KeyError, TypeError):
+        pass
+
+    return result
+
+
+def load_game(path: str = DEFAULT_SAVE_PATH) -> Collection | None:
+    """Load just the collection (backward compatible)."""
+    result = load_full_state(path)
+    if result is None:
+        return None
+    return result.get("collection")
 
 
 def validate_creature(creature: Creature) -> bool:
@@ -82,7 +138,7 @@ def validate_creature(creature: Creature) -> bool:
         return False
     if creature.hp < 0 or creature.hp > creature.max_hp:
         return False
-    if creature.creature_type not in ("fire", "water", "nature", "electric", "shadow"):
+    if creature.creature_type not in ("fire", "water", "nature", "electric", "shadow", "ice", "psychic"):
         return False
     return True
 

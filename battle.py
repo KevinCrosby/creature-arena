@@ -4,32 +4,55 @@ from __future__ import annotations
 import random
 
 from creature import Creature, Move
-from data import TYPE_CHART, WEAKNESS_MULTIPLIER, RESISTANCE_MULTIPLIER
+from data import TYPE_CHART, WEAKNESS_MULTIPLIER, RESISTANCE_MULTIPLIER, ABILITIES, CREATURE_ABILITIES
 
 CRITICAL_HIT_CHANCE = 0.10
 CRITICAL_HIT_MULTIPLIER = 1.5
 BASE_XP_REWARD = 10
 
 
-def get_type_multiplier(attack_type: str, defend_type: str) -> float:
-    """Return the damage multiplier based on type matchup."""
-    # Check if attacker has advantage
-    if defend_type in TYPE_CHART.get(attack_type, set()):
-        return WEAKNESS_MULTIPLIER
-    # Check if defender resists (symmetric: if B beats A, A resists B)
-    if attack_type in TYPE_CHART.get(defend_type, set()):
-        return RESISTANCE_MULTIPLIER
-    return 1.0
+def get_type_multiplier(attack_type: str, defend_types: str | list[str]) -> float:
+    """Return the damage multiplier based on type matchup.
+
+    Accepts a single type string or list of types for dual-type support.
+    For dual types, individual multipliers are combined multiplicatively.
+    """
+    if isinstance(defend_types, str):
+        defend_types = [defend_types]
+
+    combined = 1.0
+    for defend_type in defend_types:
+        if defend_type in TYPE_CHART.get(attack_type, set()):
+            combined *= WEAKNESS_MULTIPLIER
+        elif attack_type in TYPE_CHART.get(defend_type, set()):
+            combined *= RESISTANCE_MULTIPLIER
+    return combined
 
 
 def calculate_damage(
-    attacker: Creature, move: Move, defender: Creature, is_critical: bool = False
+    attacker: Creature, move: Move, defender: Creature,
+    is_critical: bool = False, weather_modifier: float = 1.0,
 ) -> tuple[int, float, bool]:
     """Calculate damage dealt. Returns (damage, multiplier, was_critical)."""
-    base = attacker.get_effective_attack() + move.power
-    type_mult = get_type_multiplier(move.move_type, defender.creature_type)
+    attack_val = attacker.get_effective_attack()
+
+    # Handle attacker abilities (e.g. Power Surge boosts attack)
+    if attacker.ability:
+        stat_mod = ABILITIES.get(attacker.ability, {}).get("stat_mod")
+        if stat_mod and stat_mod[0] == "attack":
+            attack_val = int(attack_val * stat_mod[1])
+
+    base = attack_val + move.power
+    type_mult = get_type_multiplier(move.move_type, defender.types)
     crit_mult = CRITICAL_HIT_MULTIPLIER if is_critical else 1.0
-    raw = int(base * type_mult * crit_mult)
+    raw = int(base * type_mult * crit_mult * weather_modifier)
+
+    # Handle defender abilities (e.g. Thick Skin boosts defense → reduce raw damage)
+    if defender.ability:
+        stat_mod = ABILITIES.get(defender.ability, {}).get("stat_mod")
+        if stat_mod and stat_mod[0] == "defense":
+            raw = int(raw / stat_mod[1])
+
     return raw, type_mult, is_critical
 
 
@@ -70,6 +93,29 @@ class BattleEngine:
         self.opponent = opponent
         self.turn_count = 0
         self.log: list[str] = []
+        self.weather_modifier: float = 1.0
+
+        # Store original attack values before Intimidate modifies them
+        self._player_original_attack = self.player.attack
+        self._opponent_original_attack = self.opponent.attack
+
+        # Handle Intimidate ability at battle start
+        if self.player.ability == "Intimidate":
+            self.opponent.attack = int(self.opponent.attack * 0.9)
+        if self.opponent.ability == "Intimidate":
+            self.player.attack = int(self.player.attack * 0.9)
+
+    def set_weather_modifier(self, modifier: float) -> None:
+        """Set the weather damage modifier for the battle."""
+        self.weather_modifier = modifier
+
+    def can_apply_status(self, creature: Creature, effect: str) -> bool:
+        """Check if a status effect can be applied (considering ability immunity)."""
+        if creature.ability:
+            ability_data = ABILITIES.get(creature.ability, {})
+            if ability_data.get("blocks_status") == effect:
+                return False
+        return True
 
     def get_turn_order(self) -> list[str]:
         """Determine who goes first based on speed. Returns ['player', 'opponent'] or vice versa."""
@@ -81,13 +127,21 @@ class BattleEngine:
         """Execute a player attack. Returns (damage, type_mult, was_crit, effect_applied)."""
         is_crit = roll_critical()
         raw_damage, type_mult, was_crit = calculate_damage(
-            self.player, move, self.opponent, is_crit
+            self.player, move, self.opponent, is_crit,
+            weather_modifier=self.weather_modifier,
         )
         actual = self.opponent.take_damage(raw_damage)
         self._log_attack(self.player, self.opponent, move, actual, type_mult, was_crit)
-        effect = apply_move_effect(move, self.opponent)
-        if effect:
-            self.log.append(f"{self.opponent.name} is now affected by {effect}!")
+
+        effect = None
+        if move.effect and not self.can_apply_status(self.opponent, move.effect):
+            self.log.append(
+                f"{self.opponent.name}'s {self.opponent.ability} prevented {move.effect}!"
+            )
+        else:
+            effect = apply_move_effect(move, self.opponent)
+            if effect:
+                self.log.append(f"{self.opponent.name} is now affected by {effect}!")
         return actual, type_mult, was_crit, effect
 
     def opponent_turn(self) -> tuple[Move | None, int, float, bool, str | None]:
@@ -101,13 +155,21 @@ class BattleEngine:
         move = self._ai_pick_move()
         is_crit = roll_critical()
         raw_damage, type_mult, was_crit = calculate_damage(
-            self.opponent, move, self.player, is_crit
+            self.opponent, move, self.player, is_crit,
+            weather_modifier=self.weather_modifier,
         )
         actual = self.player.take_damage(raw_damage)
         self._log_attack(self.opponent, self.player, move, actual, type_mult, was_crit)
-        effect = apply_move_effect(move, self.player)
-        if effect:
-            self.log.append(f"{self.player.name} is now affected by {effect}!")
+
+        effect = None
+        if move.effect and not self.can_apply_status(self.player, move.effect):
+            self.log.append(
+                f"{self.player.name}'s {self.player.ability} prevented {move.effect}!"
+            )
+        else:
+            effect = apply_move_effect(move, self.player)
+            if effect:
+                self.log.append(f"{self.player.name} is now affected by {effect}!")
         return move, actual, type_mult, was_crit, effect
 
     def player_defend(self) -> None:
@@ -123,6 +185,20 @@ class BattleEngine:
                 self.log.append(f"{creature.name} took {damage} damage from {effect}!")
             if effect == "stun":
                 self.log.append(f"{creature.name} is stunned and can't move!")
+
+        # Regenerator ability: heal 5% max HP per turn
+        if creature.ability == "Regenerator" and creature.hp > 0:
+            heal = max(1, creature.max_hp // 20)
+            creature.hp = min(creature.max_hp, creature.hp + heal)
+            self.log.append(f"{creature.name} regenerated {heal} HP!")
+
+        # Remove statuses blocked by abilities
+        if creature.ability:
+            ability_data = ABILITIES.get(creature.ability, {})
+            blocked = ability_data.get("blocks_status")
+            if blocked and blocked in creature.status_effects:
+                del creature.status_effects[blocked]
+
         return results
 
     def _ai_pick_move(self) -> Move:
@@ -139,7 +215,7 @@ class BattleEngine:
         best_move = self.opponent.moves[0]
         best_mult = 0.0
         for move in self.opponent.moves:
-            mult = get_type_multiplier(move.move_type, self.player.creature_type)
+            mult = get_type_multiplier(move.move_type, self.player.types)
             if mult > best_mult:
                 best_mult = mult
                 best_move = move

@@ -91,6 +91,16 @@ STARTER_CREATURES: list[dict] = [
      "moves": ["shadow", "normal"]},
     {"name": "Gloomwing",  "creature_type": "shadow",   "level": 1,
      "moves": ["shadow", "normal"]},
+    # Ice
+    {"name": "Frostpaw",   "creature_type": "ice",      "level": 1,
+     "moves": ["ice", "normal"]},
+    {"name": "Glacimole",  "creature_type": "ice",      "level": 1,
+     "moves": ["ice", "normal"]},
+    # Psychic
+    {"name": "Mindkit",    "creature_type": "psychic",  "level": 1,
+     "moves": ["psychic", "normal"]},
+    {"name": "Dreamowl",   "creature_type": "psychic",  "level": 1,
+     "moves": ["psychic", "normal"]},
 ]
 
 # -- Evolution chains --
@@ -131,6 +141,20 @@ EVOLUTION_CHAINS: dict[str, dict] = {
                     "new_moves": ["shadow"]},
     "Gloomwing": {"level": 5, "evolves_to": "Shadowraven", "stat_bonus": 5,
                   "new_moves": ["shadow"]},
+    # Ice evolutions
+    "Frostpaw": {"level": 5, "evolves_to": "Glacierfang", "stat_bonus": 5,
+                 "new_moves": ["ice"]},
+    "Glacierfang": {"level": 10, "evolves_to": "Blizzardking", "stat_bonus": 8,
+                    "new_moves": ["ice"]},
+    "Glacimole": {"level": 5, "evolves_to": "Permafrost", "stat_bonus": 5,
+                  "new_moves": ["ice"]},
+    # Psychic evolutions
+    "Mindkit": {"level": 5, "evolves_to": "Psyblade", "stat_bonus": 5,
+                "new_moves": ["psychic"]},
+    "Psyblade": {"level": 10, "evolves_to": "Mindlord", "stat_bonus": 8,
+                 "new_moves": ["psychic"]},
+    "Dreamowl": {"level": 5, "evolves_to": "Nightseer", "stat_bonus": 5,
+                 "new_moves": ["psychic"]},
 }
 
 def get_moves_for_types(type_keys: list[str], tier: int = 0) -> list[Move]:
@@ -174,6 +198,14 @@ ENCOUNTER_TABLES: dict[str, list[dict]] = {
     "Mystic Ruins": [
         {"template": 6, "min_level": 4, "max_level": 7},
         {"template": 9, "min_level": 4, "max_level": 7},
+    ],
+    "Glacial Peaks": [
+        {"template": 10, "min_level": 1, "max_level": 3},
+        {"template": 11, "min_level": 2, "max_level": 4},
+    ],
+    "Dream Temple": [
+        {"template": 12, "min_level": 1, "max_level": 3},
+        {"template": 13, "min_level": 2, "max_level": 4},
     ],
 }
 
@@ -356,4 +388,269 @@ CREATURE_ART: dict[str, str] = {
    \  ~~~~  /
     '-.=.-'
 """,
+    # -- Ice creatures --
+    "Frostpaw": r"""
+    /\  /\
+   ( o  o ) ❄️
+    > ^^ <
+   /|    |\
+""",
+    "Glacimole": r"""
+   ___
+  (o.o) ❄️
+   |_|
+  / | \
+""",
+    "Glacierfang": r"""
+      /\  /\
+     (❄️  ❄️)~❄️❄️
+      > WW <
+     /|    |\
+    / |    | \
+""",
+    "Blizzardking": r"""
+        👑
+       /\  /\  ❄️❄️❄️
+      (❄️  ❄️)
+       > WW <
+     /||    ||\
+    / ||    || \
+""",
+    "Permafrost": r"""
+     ___
+    (❄.❄) ❄️❄️
+    /|_|\
+   / | | \
+     | |
+""",
+    # -- Psychic creatures --
+    "Mindkit": r"""
+    /\  /\
+   ( 🔮🔮 )
+    > ~~ <
+    |    |
+""",
+    "Dreamowl": r"""
+   .-~~~-.
+  / 🔮🔮 \
+ (  ~~~~  )
+  \      /
+""",
+    "Psyblade": r"""
+      /\  /\
+     (🔮  🔮)~✨✨
+      > ~~ <
+     /|    |\
+    / |    | \
+""",
+    "Mindlord": r"""
+     ✨  ✨  ✨
+       /\  /\
+      (🔮  🔮)
+       > ~~ <
+     //|    |\\
+    / /|    |\ \
+""",
+    "Nightseer": r"""
+     .-~===~-.
+    / 🔮  🔮  \ ✨
+   (  ~~~~~~  )
+    \  ~~~~  /
+     '-.=.-'
+""",
+    # -- Dual-type creatures (from breeding) --
+    "Steamhound": r"""
+    /\  /\
+   (🔥💧)~💨
+    > ^^ <
+   /|    |\
+""",
+    "Thornflame": r"""
+   \|/
+  --🔥-- 🌿
+   /|\
+  / | \
+""",
+    "Frostwave": r"""
+     ><>
+   ><(❄°> ❄️💧
+     ><>
+""",
+    "Sparkleaf": r"""
+   \|/ ⚡
+  --*--
+   /|\ 🌿
+  / | \
+""",
+    "Mindshade": r"""
+    /\  /\
+   (🔮🌙)
+    > ~~ <
+    |    |
+""",
+}
+
+# -- Creature abilities --
+ABILITIES: dict[str, dict] = {
+    "Fireproof":   {"description": "Immune to burn", "blocks_status": "burn"},
+    "Waterproof":  {"description": "Immune to poison", "blocks_status": "poison"},
+    "Grounded":    {"description": "Immune to stun", "blocks_status": "stun"},
+    "Thick Skin":  {"description": "+25% defense", "stat_mod": ("defense", 1.25)},
+    "Quick Feet":  {"description": "+25% speed", "stat_mod": ("speed", 1.25)},
+    "Power Surge": {"description": "+15% attack", "stat_mod": ("attack", 1.15)},
+    "Regenerator": {"description": "Heal 5% HP each turn", "heal_per_turn": 0.05},
+    "Intimidate":  {"description": "Opponent -10% attack at battle start", "opponent_mod": ("attack", 0.9)},
+}
+
+CREATURE_ABILITIES: dict[str, str] = {
+    "Blazepup": "Fireproof", "Cinderax": "Fireproof",
+    "Aquafin": "Waterproof", "Tidalynx": "Waterproof",
+    "Thornwhip": "Regenerator", "Mossling": "Regenerator",
+    "Zappaw": "Quick Feet", "Voltfox": "Quick Feet",
+    "Duskfang": "Intimidate", "Gloomwing": "Intimidate",
+    "Frostpaw": "Thick Skin", "Glacimole": "Thick Skin",
+    "Mindkit": "Power Surge", "Dreamowl": "Grounded",
+}
+
+# -- Items --
+ITEMS: dict[str, dict] = {
+    "Potion":          {"type": "heal", "value": 20,
+                        "description": "Restores 20 HP", "price": 10},
+    "Super Potion":    {"type": "heal", "value": 50,
+                        "description": "Restores 50 HP", "price": 25},
+    "Full Heal":       {"type": "full_heal", "value": 0,
+                        "description": "Fully restores HP and cures status", "price": 50},
+    "Antidote":        {"type": "cure_status", "value": 0,
+                        "description": "Cures all status effects", "price": 8},
+    "Attack Berry":    {"type": "stat_boost", "stat": "attack", "value": 3,
+                        "description": "Permanently +3 ATK", "price": 40},
+    "Defense Berry":   {"type": "stat_boost", "stat": "defense", "value": 2,
+                        "description": "Permanently +2 DEF", "price": 40},
+    "Speed Berry":     {"type": "stat_boost", "stat": "speed", "value": 2,
+                        "description": "Permanently +2 SPD", "price": 40},
+    "Capture Stone":   {"type": "catch_boost", "value": 0.2,
+                        "description": "+20% catch rate", "price": 15},
+    "Golden Stone":    {"type": "catch_boost", "value": 0.5,
+                        "description": "+50% catch rate", "price": 35},
+    "XP Charm":        {"type": "xp_boost", "value": 1.5,
+                        "description": "1.5x XP from next battle", "price": 30},
+}
+
+# -- Weather conditions --
+WEATHER_CONDITIONS: dict[str, dict] = {
+    "Sunny":     {"boosts": ["fire"],    "weakens": ["water", "ice"],
+                  "description": "\u2600\ufe0f The sun blazes! Fire moves strengthened."},
+    "Rainy":     {"boosts": ["water"],   "weakens": ["fire"],
+                  "description": "\U0001f327\ufe0f Rain falls! Water moves strengthened."},
+    "Windy":     {"boosts": ["nature"],  "weakens": ["fire"],
+                  "description": "\U0001f32a\ufe0f Strong winds! Nature moves strengthened."},
+    "Stormy":    {"boosts": ["electric"],"weakens": ["water"],
+                  "description": "\u26c8\ufe0f Lightning crackles! Electric moves strengthened."},
+    "Foggy":     {"boosts": ["shadow", "psychic"], "weakens": ["normal"],
+                  "description": "\U0001f32b\ufe0f Dense fog! Shadow & Psychic moves strengthened."},
+    "Snowy":     {"boosts": ["ice"],     "weakens": ["nature", "fire"],
+                  "description": "\u2744\ufe0f Snow falls! Ice moves strengthened."},
+    "Clear":     {"boosts": [],          "weakens": [],
+                  "description": "\u2728 Clear skies. No weather effects."},
+}
+
+WEATHER_BOOST = 1.3
+WEATHER_WEAKEN = 0.7
+
+# -- Achievement definitions --
+ACHIEVEMENT_DEFS: list[dict] = [
+    {"id": "first_catch",       "name": "Gotta Start Somewhere",  "description": "Catch your first creature",      "icon": "\U0001f3a3"},
+    {"id": "catch_10",          "name": "Collector",              "description": "Catch 10 creatures",              "icon": "\U0001f4e6"},
+    {"id": "win_first_battle",  "name": "First Victory",         "description": "Win your first battle",           "icon": "\u2694\ufe0f"},
+    {"id": "win_10_battles",    "name": "Battle Veteran",         "description": "Win 10 battles",                  "icon": "\U0001f3c5"},
+    {"id": "win_50_battles",    "name": "Arena Champion",         "description": "Win 50 battles",                  "icon": "\U0001f3c6"},
+    {"id": "first_evolution",   "name": "Growing Up",             "description": "Evolve a creature for the first time", "icon": "\U0001f9ec"},
+    {"id": "full_party",        "name": "Squad Goals",            "description": "Fill your party to 6 creatures",  "icon": "\U0001f465"},
+    {"id": "level_10",          "name": "Grinder",                "description": "Reach level 10 with a creature",  "icon": "\U0001f4aa"},
+    {"id": "all_types",         "name": "Type Master",            "description": "Catch one of every type",         "icon": "\U0001f308"},
+    {"id": "no_damage_win",     "name": "Untouchable",            "description": "Win a battle without taking damage", "icon": "\U0001f6e1\ufe0f"},
+    {"id": "crit_finish",       "name": "Critical Finisher",      "description": "Win with a critical hit",         "icon": "\U0001f4a5"},
+    {"id": "first_breed",       "name": "Creature Breeder",       "description": "Breed your first creature",       "icon": "\U0001f95a"},
+    {"id": "tournament_win",    "name": "Tournament Champion",    "description": "Win a tournament",                "icon": "\U0001f451"},
+    {"id": "story_complete",    "name": "Hero of the Arena",      "description": "Complete the story mode",         "icon": "\U0001f4d6"},
+    {"id": "all_areas",         "name": "World Explorer",         "description": "Visit every exploration area",    "icon": "\U0001f5fa\ufe0f"},
+]
+
+# -- Story / quest data --
+STORY_CHAPTERS: list[dict] = [
+    {
+        "id": 1, "title": "The Awakening",
+        "intro": "You've just received your first creature! But wild creatures are causing trouble in the Scorched Plains...",
+        "area": "Scorched Plains",
+        "boss": {"name": "Blazepup", "creature_type": "fire", "level": 4, "moves": ["fire", "normal"]},
+        "boss_intro": "\U0001f525 Fire Captain Kai: 'You think you can handle the heat, rookie?'",
+        "reward_gold": 50, "reward_item": "Potion",
+    },
+    {
+        "id": 2, "title": "Tidal Troubles",
+        "intro": "Strange tides are flooding Crystal Lake. A powerful water creature guards the source...",
+        "area": "Crystal Lake",
+        "boss": {"name": "Tidalynx", "creature_type": "water", "level": 6, "moves": ["water", "normal"]},
+        "boss_intro": "\U0001f4a7 Sailor Marina: 'The lake chose me. You\'ll have to go through me!'",
+        "reward_gold": 75, "reward_item": "Super Potion",
+    },
+    {
+        "id": 3, "title": "Thunder Trials",
+        "intro": "Lightning has struck Thunder Peak! An electric guardian blocks the pass...",
+        "area": "Thunder Peak",
+        "boss": {"name": "Voltfox", "creature_type": "electric", "level": 8, "moves": ["electric", "normal"]},
+        "boss_intro": "\u26a1 Storm Warden Bolt: 'Feel the power of the storm!'",
+        "reward_gold": 100, "reward_item": "Attack Berry",
+    },
+    {
+        "id": 4, "title": "Shadows Unleashed",
+        "intro": "Darkness spreads from the Shadow Caverns. Something ancient stirs within...",
+        "area": "Shadow Caverns",
+        "boss": {"name": "Gloomwing", "creature_type": "shadow", "level": 10, "moves": ["shadow", "normal"]},
+        "boss_intro": "\U0001f319 Shadow Keeper Nyx: 'You dare enter my domain?'",
+        "reward_gold": 150, "reward_item": "Golden Stone",
+    },
+    {
+        "id": 5, "title": "The Final Challenge",
+        "intro": "The Arena Grand Master awaits. Prove you're the ultimate creature trainer!",
+        "area": "Mystic Ruins",
+        "boss": {"name": "Mindkit", "creature_type": "psychic", "level": 12, "moves": ["psychic", "normal"]},
+        "boss_intro": "\U0001f52e Grand Master Sage: 'I\'ve seen your journey. Now show me your true strength!'",
+        "reward_gold": 300, "reward_item": "XP Charm",
+    },
+]
+
+# -- Tournament data --
+TOURNAMENT_TIERS: list[dict] = [
+    {"name": "Bronze Cup", "level_range": (1, 4), "rounds": 3, "reward_gold": 75},
+    {"name": "Silver Cup", "level_range": (3, 7), "rounds": 4, "reward_gold": 150},
+    {"name": "Gold Cup",   "level_range": (6, 10), "rounds": 5, "reward_gold": 300},
+    {"name": "Champion Cup", "level_range": (9, 14), "rounds": 5, "reward_gold": 500},
+]
+
+# -- Breeding compatibility --
+BREEDING_TABLE: dict[tuple[str, str], list[str]] = {
+    ("fire", "water"):    ["fire", "water"],
+    ("fire", "nature"):   ["fire", "nature"],
+    ("fire", "ice"):      ["fire", "water"],
+    ("water", "nature"):  ["water", "nature"],
+    ("water", "ice"):     ["water", "ice"],
+    ("electric", "fire"):  ["electric", "fire"],
+    ("electric", "water"): ["electric", "water"],
+    ("electric", "nature"):["electric", "nature"],
+    ("ice", "nature"):    ["ice", "nature"],
+    ("psychic", "shadow"):["psychic", "shadow"],
+    ("nature", "shadow"): ["nature", "shadow"],
+    ("ice", "shadow"):    ["ice", "shadow"],
+}
+
+DUAL_TYPE_CREATURES: dict[str, dict] = {
+    "Steamhound":   {"primary": "fire",     "secondary": "water",    "ability": "Thick Skin"},
+    "Thornflame":   {"primary": "fire",     "secondary": "nature",   "ability": "Fireproof"},
+    "Stormpup":     {"primary": "electric", "secondary": "fire",     "ability": "Quick Feet"},
+    "Frostwave":    {"primary": "water",    "secondary": "ice",      "ability": "Waterproof"},
+    "Sparkleaf":    {"primary": "electric", "secondary": "nature",   "ability": "Regenerator"},
+    "Mindshade":    {"primary": "psychic",  "secondary": "shadow",   "ability": "Intimidate"},
+    "Glacivine":    {"primary": "ice",      "secondary": "nature",   "ability": "Thick Skin"},
+    "Thundertide":  {"primary": "electric", "secondary": "water",    "ability": "Quick Feet"},
 }
